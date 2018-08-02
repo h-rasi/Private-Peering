@@ -46,6 +46,25 @@ def pars(x):
 			inf.append(i)
 	return inf
 
+def CheckInterface(x):
+    lines = x.splitlines()[1:]
+    interfaces = []
+    for line in lines:
+        words = line.split()[0:1]
+        for i in words:
+            if 'Gi' in i:
+                interfaces.append(i)
+    return interfaces
+
+def CheckVtpServer(z):
+    lines = z.splitlines()[11:12]
+    interfaces = []
+    for line in lines:
+        words = line.split()
+    lenght= len(words)
+    status = words[lenght-1]
+    return status
+
 ###############################################################
 threads_list = []
 lock = threading.Lock()
@@ -66,18 +85,23 @@ def config(device1,input,output,vlan_id):
 		vlanId = vlan_id
 		connection = ConnectHandler(**device2)
 		connection.enable()
+		out1 = connection.send_command('show interfaces description')
+		InterfaceInf = CheckInterface(out1)
 		port = [port1,port2]
 		for i in port:
-			words = []
-			output1 = connection.send_command('show running-config interface '+i)
-			words = pars(output1)
-			if len(words) == 0:
-				config1 = ['interface '+i,'switchport trunk enc dot1q','switchport mode trunk','switchport trunk allowed vlan '+vlanId,'sp mode ra','sp vlan '+vlanId]
-				sw_output = connection.send_config_set(config1)
+			if i in InterfaceInf:
+				words = []
+				output1 = connection.send_command('show running-config interface '+i)
+				words = pars(output1)
+				if len(words) == 0:
+					config1 = ['interface '+i,'switchport trunk enc dot1q','switchport mode trunk','switchport trunk allowed vlan '+vlanId,'sp mode ra','sp vlan '+vlanId]
+					sw_output = connection.send_config_set(config1)
+				else:
+					config1 = ['interface '+i,'switchport trunk enc dot1q','switchport mode trunk','switchport trunk allowed vlan add '+vlanId,'sp mode ra','sp vlan '+vlanId]
+					sw_output = connection.send_config_set(config1)
 			else:
-				config1 = ['interface '+i,'switchport trunk enc dot1q','switchport mode trunk','switchport trunk allowed vlan add '+vlanId,'sp mode ra','sp vlan '+vlanId]
-				sw_output = connection.send_config_set(config1)
-
+				print("The interface {} is wrong.Please check the information again".format(i))
+				exit(100)
 		connection.enable()
 		connection.send_command('write memory')
 		connection.disconnect()
@@ -104,13 +128,20 @@ for i in devices:
 try:
 	vtp_connection = ConnectHandler(**device)
 	vtp_connection.enable()
-	vtp_config = ['vtp mode server','vlan '+vlan_id,'name '+vlan_name,'no shutdown']
-	vto_output = vtp_connection.send_config_set(vtp_config)
-	vtp_connection.disconnect()
+	out2 = vtp_connection.send_command('show vtp status')
+	VTPStatus = CheckVtpServer(out2)
+	if VTPStatus = "Server":
+		vtp_config = ['vtp mode server','vlan '+vlan_id,'name '+vlan_name,'no shutdown']
+		vto_output = vtp_connection.send_config_set(vtp_config)
+		print('Vtp server updating... ')
+		vtp_connection.disconnect()
+	else:
+		print("The Selected VTP server is not actually a VTP Server")
+		exit(200)
+		break
 except netmiko_exceptions as e:
 	print('failed to ',device['ip'],e)
 	exit(-1)
-print('Vtp server updating... ')
 ############################################### Main function
 start_time = datetime.now()
 print(start_time)
@@ -139,9 +170,7 @@ for a_device in peers:
     else:
         print("There is no Entry for {} in the database".format(ip))
         print('~'*79)
-
-
-
+        exit(151)
 
 main_thread = threading.currentThread()
 for t in threads_list:
