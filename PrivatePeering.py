@@ -22,10 +22,7 @@ signal.signal(signal.SIGINT, signal.SIG_DFL)#KeyboardInterrupt: Ctrl+C
 
 netmiko_exceptions = (netmiko.ssh_exception.NetMikoTimeoutException,
 					  netmiko.ssh_exception.NetMikoAuthenticationException,
-					  netmiko.NetMikoTimeoutException,
-					  netmiko.NetMikoAuthenticationException, netmiko.NetmikoTimeoutError, netmiko.NetmikoAuthError,
-					  netmiko.ssh_exception.SSHException, netmiko.ssh_exception.AuthenticationException,
-					  paramiko.OPEN_FAILED_CONNECT_FAILED, socket.timeout, paramiko.SSHException
+					  netmiko.NetMikoTimeoutException
 					  )
 
 
@@ -57,13 +54,17 @@ def CheckInterface(x):
     return interfaces
 
 def CheckVtpServer(z):
-    lines = z.splitlines()[11:12]
+    lines = z.splitlines()
     interfaces = []
     for line in lines:
+        if "Operating" in line:
+            interfaces.append(line)
+    for line in interfaces:
         words = line.split()
-    lenght= len(words)
-    status = words[lenght-1]
-    return status
+    if "Server" in words:
+        return "Server"
+    else:
+        return "Client"
 
 ###############################################################
 threads_list = []
@@ -85,8 +86,7 @@ def config(device1,input,output,vlan_id):
 		vlanId = vlan_id
 		connection = ConnectHandler(**device2)
 		connection.enable()
-		out1 = connection.send_command('show interfaces description')
-		InterfaceInf = CheckInterface(out1)
+		InterfaceInf = CheckInterface()
 		port = [port1,port2]
 		for i in port:
 			if i in InterfaceInf:
@@ -101,7 +101,8 @@ def config(device1,input,output,vlan_id):
 					sw_output = connection.send_config_set(config1)
 			else:
 				print("The interface {} is wrong.Please check the information again".format(i))
-				exit(100)
+				break
+				exit(1000)
 		connection.enable()
 		connection.send_command('write memory')
 		connection.disconnect()
@@ -118,19 +119,22 @@ vlan_name = peers[0]["vlan_name"]
 vtp = peers[0]["vtp"]
 print('Connecting to VTP server to add the new vlan')
 device ["ip"] = vtp
-for i in devices:
-	if i ["ip"] == vtp:
-		device ['username'] = i ["username"]
-		device ['password'] = i ["password"]
-		device ['secret'] = i ["secret"]
-		device ['device_type'] = "cisco_ios"
+iplist = []
+for l in devices:
+	iplist.append(l["ip"])
+if vtp in iplist:
+	for i in devices:
+		if i ["ip"] == vtp:
+			device ['username'] = i ["username"]
+			device ['password'] = i ["password"]
+			device ['secret'] = i ["secret"]
+			device ['device_type'] = "cisco_ios"
 
-try:
 	vtp_connection = ConnectHandler(**device)
 	vtp_connection.enable()
 	out2 = vtp_connection.send_command('show vtp status')
 	VTPStatus = CheckVtpServer(out2)
-	if VTPStatus = "Server":
+	if VTPStatus == "Server":
 		vtp_config = ['vtp mode server','vlan '+vlan_id,'name '+vlan_name,'no shutdown']
 		vto_output = vtp_connection.send_config_set(vtp_config)
 		print('Vtp server updating... ')
@@ -138,10 +142,10 @@ try:
 	else:
 		print("The Selected VTP server is not actually a VTP Server")
 		exit(200)
-		break
-except netmiko_exceptions as e:
-	print('failed to ',device['ip'],e)
-	exit(-1)
+else:
+	print("There is No Such IP Adress in DATABASE As the VTP Server...leaving")
+	exit(166)
+
 ############################################### Main function
 start_time = datetime.now()
 print(start_time)
@@ -154,6 +158,7 @@ for a_device in peers:
     input = a_device['port1']
     output = a_device['port2']
     print('Connecting to device',a_device['ip'])
+    print('~'*79)
     if ip in ip_list:
         for i in devices:
             if i["ip"] == ip:
@@ -169,7 +174,7 @@ for a_device in peers:
                 my_thread.start()
     else:
         print("There is no Entry for {} in the database".format(ip))
-        print('~'*79)
+        print('#'*40)
         exit(151)
 
 main_thread = threading.currentThread()
