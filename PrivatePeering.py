@@ -86,7 +86,8 @@ def config(device1,input,output,vlan_id):
 		vlanId = vlan_id
 		connection = ConnectHandler(**device2)
 		connection.enable()
-		InterfaceInf = CheckInterface()
+		out1 = connection.send_command('show interfaces description')
+		InterfaceInf = CheckInterface(out1)
 		port = [port1,port2]
 		for i in port:
 			if i in InterfaceInf:
@@ -101,8 +102,9 @@ def config(device1,input,output,vlan_id):
 					sw_output = connection.send_config_set(config1)
 			else:
 				print("The interface {} is wrong.Please check the information again".format(i))
-				break
 				exit(1000)
+				break
+
 		connection.enable()
 		connection.send_command('write memory')
 		connection.disconnect()
@@ -111,7 +113,7 @@ def config(device1,input,output,vlan_id):
 
 	except netmiko_exceptions as e:
 		print('failed to ',device2['ip'],e)
-		exit(-1)
+		exit(3)
 
 ########################################################VTP server configuration
 
