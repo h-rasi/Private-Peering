@@ -42,7 +42,7 @@ def pars(x):
 		if 'switchport' in i and 'allowed' in i:
 			inf.append(i)
 	return inf
-
+#############################################################
 def CheckInterface(x):
     lines = x.splitlines()[1:]
     interfaces = []
@@ -52,7 +52,7 @@ def CheckInterface(x):
             if 'Gi' in i:
                 interfaces.append(i)
     return interfaces
-
+#############################################################
 def CheckVtpServer(z):
     lines = z.splitlines()
     interfaces = []
@@ -67,10 +67,12 @@ def CheckVtpServer(z):
         return "Client"
 
 ###############################################################
+
 threads_list = []
 lock = threading.Lock()
 device = {"ip":"","username":"","password":"","device_type":"","secret":""}
 vlan_id = peers[0]["vlan"]
+portValid = []
 ############################################################ configuration thread
 def config(device1,input,output,vlan_id):
 	try:
@@ -88,6 +90,7 @@ def config(device1,input,output,vlan_id):
 		connection.enable()
 		out1 = connection.send_command('show interfaces description')
 		InterfaceInf = CheckInterface(out1)
+		portValid = InterfaceInf
 		port = [port1,port2]
 		for i in port:
 			if i in InterfaceInf:
@@ -102,8 +105,9 @@ def config(device1,input,output,vlan_id):
 					sw_output = connection.send_config_set(config1)
 			else:
 				print("The interface {} is wrong.Please check the information again".format(i))
+				print('~'*79)
+				my_thread.do_run = False
 				exit(1000)
-				break
 
 		connection.enable()
 		connection.send_command('write memory')
@@ -119,6 +123,7 @@ def config(device1,input,output,vlan_id):
 
 vlan_name = peers[0]["vlan_name"]
 vtp = peers[0]["vtp"]
+print('#'*60)
 print('Connecting to VTP server to add the new vlan')
 device ["ip"] = vtp
 iplist = []
@@ -142,7 +147,7 @@ if vtp in iplist:
 		print('Vtp server updating... ')
 		vtp_connection.disconnect()
 	else:
-		print("The Selected VTP server is not actually a VTP Server")
+		print("The Selected VTP server is not actually a VTP Server,It is in VTP Clinet mode...Leaving")
 		exit(200)
 else:
 	print("There is No Such IP Adress in DATABASE As the VTP Server...leaving")
@@ -160,12 +165,10 @@ for a_device in peers:
     input = a_device['port1']
     output = a_device['port2']
     print('Connecting to device',a_device['ip'])
-    print('~'*79)
     if ip in ip_list:
         for i in devices:
             if i["ip"] == ip:
                 print("Fetching the information from the database for device: ",i["ip"])
-                print('~'*79)
                 device ['ip'] = ip
                 device ['username'] = i ["username"]
                 device ['password'] = i ["password"]
