@@ -142,12 +142,13 @@ if vtp in iplist:
 	out2 = vtp_connection.send_command('show vtp status')
 	VTPStatus = CheckVtpServer(out2)
 	if VTPStatus == "Server":
-		vtp_config = ['vtp mode server','vlan '+vlan_id,'name '+vlan_name,'no shutdown']
+		vtp_config = ['vlan '+vlan_id,'name '+vlan_name,'no shutdown']
 		vto_output = vtp_connection.send_config_set(vtp_config)
 		print('Vtp server updating... ')
 		vtp_connection.disconnect()
 	else:
-		print("The Selected VTP server is not actually a VTP Server,It is in VTP Clinet mode...Leaving")
+		print("The Selected VTP server is not actually a VTP Server,\
+		It is in VTP Clinet mode...Leaving")
 		exit(200)
 else:
 	print("There is No Such IP Adress in DATABASE As the VTP Server...leaving")
