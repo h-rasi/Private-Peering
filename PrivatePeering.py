@@ -84,6 +84,7 @@ def config(device1,input,output,vlan_id):
 		device2 ['device_type'] = device1 ["device_type"]
 		port1 = input
 		port2 = output
+                print(port1)
 		port = []
 		vlanId = vlan_id
 		connection = ConnectHandler(**device2)
